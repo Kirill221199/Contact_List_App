@@ -1,10 +1,12 @@
 package ru.kirill.contact_list_app
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.ContentResolver
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
@@ -46,6 +48,7 @@ class MainFragment : Fragment() {
 
     }
 
+    @SuppressLint("Range")
     fun getContacts() {
         val contentResolver: ContentResolver = requireContext().contentResolver
         val cursor = contentResolver.query(
@@ -58,24 +61,40 @@ class MainFragment : Fragment() {
         cursor?.let {
             for (i in 0 until it.count) {
                 if (cursor.moveToPosition(i)) {
-                    val columnNameIndex =
-                        cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
-                    val name: String = cursor.getString(columnNameIndex)
+                    val columnNameIndexName = cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
+                    val name: String = cursor.getString(columnNameIndexName)
+                    val contactId = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts._ID))
+                    val number = getNumberFromID(contentResolver,contactId)
+
                     binding.fragmentContainer.addView(TextView(requireContext()).apply {
                         textSize = 30f
-                        text = name
+                        text = name+": "+number
                         setOnClickListener( View.OnClickListener { view ->
-                            text = "PRESS"
-
                             val intent = Intent(Intent.ACTION_DIAL)
-                            intent.data = Uri.parse("tel:89*********")
+                            intent.data = Uri.parse("tel:$number")
                             startActivity(intent)
                         })
                     })
                 }
             }
+            cursor?.close()
         }
 
+    }
+
+    @SuppressLint("Range")
+    private fun getNumberFromID(сontentResolver: ContentResolver, contactId: String) :String {
+        val phones = сontentResolver.query(
+            ContactsContract.CommonDataKinds.Phone.CONTENT_URI, null,
+            ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = " + contactId, null, null
+        )
+        var number: String? = null
+        phones?.let { cursor ->
+            while (cursor.moveToNext()) {
+                number = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER))
+            }
+        }
+        return number!!
     }
 
     private fun mRequestPermission() {
